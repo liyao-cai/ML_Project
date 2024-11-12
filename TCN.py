@@ -45,17 +45,17 @@ print("Test shape:", X_test_seq.shape)
 
 model = tf.keras.models.Sequential()
 
-model.add(TCN(nb_filters=64,  # number of convolution kernels
-              kernel_size=3,  # Convolution kernel size
-              dilations=[1, 2, 4, 8],  # Dilated convolution factor
-              nb_stacks=1,  # Number of stacking layers
+model.add(TCN(nb_filters=128,  # number of convolution kernels
+              kernel_size=5,  # Convolution kernel size
+              dilations=[1, 2, 4, 8, 16, 32],  # Dilated convolution factor
+              nb_stacks=2,  # Number of stacking layers
               input_shape=(X_train_seq.shape[1], X_train_seq.shape[2]),  # (time_steps, num_features)
               padding='causal',  # Causal Convolution for Time Series Prediction
               return_sequences=False))
 
 
 model.add(Dense(units=64, activation='relu'))
-model.add(Dropout(0.3))
+model.add(Dropout(0.4))
 model.add(Dense(units=1))
 
 
