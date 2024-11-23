@@ -82,7 +82,7 @@ for i, target in enumerate(target):
 # Visualizing prediction results
 plt.figure(figsize=(15, 5))
 for i, target in enumerate(target):
-    plt.subplot(1, 4, i + 1)
+    plt.subplot(1, 3, i + 1)
     plt.plot(y_test_seq[:, i], label='True')
     plt.plot(y_pred[:, i], label='Prediction')
     plt.title(f'Actual vs Prediction\n{target}')
