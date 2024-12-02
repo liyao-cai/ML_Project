@@ -44,28 +44,58 @@ X_test_seq, y_test_seq = create_sequences(X_test, y_test, time_steps)
 print("Train shape:", X_train_seq.shape)
 print("Test shape:", X_test_seq.shape)
 
+class MetricsCallback(tf.keras.callbacks.Callback):
+    def __init__(self, validation_data, targets):
+        self.validation_data = validation_data
+        self.targets = targets
+        self.epoch_mse = []
+        self.epoch_mae = []
+        self.epoch_r2 = []
+
+    def on_epoch_end(self, epoch, logs=None):
+        X_val, y_val = self.validation_data
+        y_pred = self.model.predict(X_val)
+
+        # Calculate MSE, MAE, and R² for each target
+        mse = []
+        mae = []
+        r2 = []
+        for i, target in enumerate(self.targets):
+            mse.append(mean_squared_error(y_val[:, i], y_pred[:, i]))
+            mae.append(mean_absolute_error(y_val[:, i], y_pred[:, i]))
+            r2.append(r2_score(y_val[:, i], y_pred[:, i]))
+
+        # Calculate the average and store it
+        self.epoch_mse.append(np.mean(mse))
+        self.epoch_mae.append(np.mean(mae))
+        self.epoch_r2.append(np.mean(r2))
+
+        print(f"Epoch {epoch + 1}: Avg MSE = {np.mean(mse):.4f}, Avg MAE = {np.mean(mae):.4f}, Avg R² = {np.mean(r2):.4f}")
+
+
+
 model = tf.keras.models.Sequential()
-
-model.add(TCN(nb_filters=128,  # number of convolution kernels
-              kernel_size=5,  # Convolution kernel size
-              dilations=[1, 2, 4, 8, 16, 32],  # Dilated convolution factor
-              nb_stacks=2,  # Number of stacking layers
-              input_shape=(X_train_seq.shape[1], X_train_seq.shape[2]),  # (time_steps, num_features)
-              padding='causal',  # Causal Convolution for Time Series Prediction
+model.add(TCN(nb_filters=64,
+              kernel_size=9,
+              dilations=[1, 2, 4, 8, 16, 32],
+              nb_stacks=3,
+              input_shape=(X_train_seq.shape[1], X_train_seq.shape[2]),
+              padding='causal',
               return_sequences=False))
-
-
-model.add(Dense(units=64, activation='relu'))
-model.add(Dropout(0.4))
-model.add(Dense(units=64, activation='relu'))
-model.add(Dropout(0.4))
+model.add(Dense(units=224, activation='relu'))
+model.add(Dropout(0.1))
+model.add(Dense(units=160, activation='relu'))
+model.add(Dropout(0.1))
 model.add(Dense(units=3))
 
-
 model.compile(optimizer=Adam(learning_rate=0.0005), loss='mean_squared_error')
-history = model.fit(X_train_seq, y_train_seq, epochs=200, batch_size=16, validation_data=(X_test_seq, y_test_seq))
+metrics_callback = MetricsCallback(validation_data=(X_test_seq, y_test_seq), targets=targets)
 
-y_pred = model.predict(X_test_seq).flatten()
+history = model.fit(X_train_seq, y_train_seq, epochs=150, batch_size=16,
+                    validation_data=(X_test_seq, y_test_seq),
+                    callbacks=[metrics_callback])
+
+y_pred = model.predict(X_test_seq)
 
 # Calculate the evaluation index for each target feature separately
 for i, target in enumerate(targets):
@@ -85,5 +115,47 @@ for i, target in enumerate(targets):
     plt.plot(y_pred[:, i], label='Prediction')
     plt.title(f'Actual vs Prediction\n{target}')
     plt.legend()
+plt.tight_layout()
+plt.show()
+
+
+epochs = range(1, 151)
+
+
+plt.figure(figsize=(18, 6), dpi=300)
+
+# MSE
+plt.subplot(1, 3, 1)
+plt.plot(epochs, metrics_callback.epoch_mse, label="MSE")
+plt.title("MSE Trend")
+plt.xlabel("Epochs")
+plt.ylabel("MSE")
+plt.legend()
+plt.grid(alpha=0.3)
+
+plt.ylim(0, 10)
+
+# MAE
+plt.subplot(1, 3, 2)
+plt.plot(epochs, metrics_callback.epoch_mae, label="MAE")
+plt.title("MAE Trend")
+plt.xlabel("Epochs")
+plt.ylabel("MAE")
+plt.legend()
+plt.grid(alpha=0.3)
+
+plt.ylim(0, 10)
+
+# R²
+plt.subplot(1, 3, 3)
+plt.plot(epochs, metrics_callback.epoch_r2, label="R²")
+plt.title("R² Trend")
+plt.xlabel("Epochs")
+plt.ylabel("R²")
+plt.legend()
+plt.grid(alpha=0.3)
+plt.ylim(-10, 1)
+
+
 plt.tight_layout()
 plt.show()
